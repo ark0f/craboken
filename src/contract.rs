@@ -521,6 +521,56 @@ mod tests {
     }
 
     #[test]
+    fn handle_transfer_from_unauthorized() {
+        let mut deps = mock_dependencies(16, &[]);
+
+        init_contract(&mut deps);
+        mint(&mut deps);
+
+        let third_party_env = mock_env("third_party", &[]);
+
+        let msg = HandleMsg::TransferFrom {
+            from: "sender".into(),
+            to: "recipient".into(),
+            amount: Uint128(1000),
+        };
+
+        let err = handle(&mut deps, third_party_env, msg).unwrap_err();
+        assert_eq!(err, StdError::unauthorized());
+    }
+
+    #[test]
+    fn handle_transfer_from_allowance_is_false() {
+        let mut deps = mock_dependencies(16, &[]);
+
+        init_contract(&mut deps);
+        mint(&mut deps);
+
+        // set allowance
+        let msg = HandleMsg::SetAllowance {
+            spender: "third_party".into(),
+            amount: Uint128(ALLOWANCE_AMOUNT),
+            is_allowed: false,
+        };
+
+        let env = mock_env("sender", &[]);
+
+        handle(&mut deps, env, msg).unwrap();
+
+        // transfer from
+        let third_party_env = mock_env("third_party", &[]);
+
+        let msg = HandleMsg::TransferFrom {
+            from: "sender".into(),
+            to: "recipient".into(),
+            amount: Uint128(1000),
+        };
+
+        let err = handle(&mut deps, third_party_env, msg).unwrap_err();
+        assert_eq!(err, StdError::unauthorized());
+    }
+
+    #[test]
     fn handle_burn_from() {
         let mut deps = mock_dependencies(16, &[]);
 
@@ -574,6 +624,54 @@ mod tests {
         };
 
         handle(&mut deps, third_party_env, msg).unwrap_err();
+    }
+
+    #[test]
+    fn handle_burn_from_unauthorized() {
+        let mut deps = mock_dependencies(16, &[]);
+
+        init_contract(&mut deps);
+        mint(&mut deps);
+
+        let third_party_env = mock_env("third_party", &[]);
+
+        let msg = HandleMsg::BurnFrom {
+            from: "sender".into(),
+            amount: Uint128(1000),
+        };
+
+        let err = handle(&mut deps, third_party_env, msg).unwrap_err();
+        assert_eq!(err, StdError::unauthorized());
+    }
+
+    #[test]
+    fn handle_burn_from_allowance_is_false() {
+        let mut deps = mock_dependencies(16, &[]);
+
+        init_contract(&mut deps);
+        mint(&mut deps);
+
+        // set allowance
+        let msg = HandleMsg::SetAllowance {
+            spender: "third_party".into(),
+            amount: Uint128(ALLOWANCE_AMOUNT),
+            is_allowed: false,
+        };
+
+        let env = mock_env("sender", &[]);
+
+        handle(&mut deps, env, msg).unwrap();
+
+        // burn from
+        let third_party_env = mock_env("third_party", &[]);
+
+        let msg = HandleMsg::BurnFrom {
+            from: "sender".into(),
+            amount: Uint128(1000),
+        };
+
+        let err = handle(&mut deps, third_party_env, msg).unwrap_err();
+        assert_eq!(err, StdError::unauthorized());
     }
 
     #[test]
