@@ -135,7 +135,7 @@ fn try_mint<S: Storage, A: Api, Q: Querier>(
     let recipient_balance = balances.get(&recipient)?;
     let new_recipient_balance = recipient_balance
         .checked_add(amount)
-        .ok_or_else(|| StdError::generic_err("Too much tokens to mint for user"))?;
+        .ok_or_else(|| StdError::generic_err("Too many tokens to mint for user"))?;
     balances.set(&recipient, new_recipient_balance)?;
 
     State::write(&mut deps.storage).update(|mut state| {
@@ -189,7 +189,7 @@ fn try_burn_inner<S: Storage, A: Api, Q: Querier>(
     let sender_balance = balances.get(&from)?;
     let sender_new_balance = sender_balance
         .checked_sub(amount)
-        .ok_or_else(|| StdError::generic_err("Too much amount of tokens to burn"))?;
+        .ok_or_else(|| StdError::generic_err("Too many tokens to burn"))?;
     balances.set(&from, sender_new_balance)?;
 
     State::write(&mut deps.storage).update(|mut state| {
