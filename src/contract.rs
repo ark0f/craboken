@@ -264,8 +264,6 @@ mod tests {
     use cosmwasm_std::from_binary;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
 
-    // TODO: error cases
-
     const INITIAL_TOTAL_SUPPLY: u128 = 100_000_000;
     const INITIAL_BALANCE: u128 = 1_000_000;
     const ALLOWANCE_AMOUNT: u128 = 10_000;
@@ -320,6 +318,39 @@ mod tests {
 
         let state = State::read(&deps.storage).load().unwrap();
         assert_eq!(state.total_supply.u128(), TOTAL_SUPPLY);
+    }
+
+    #[test]
+    fn handle_mint_unauthorized() {
+        let mut deps = mock_dependencies(16, &[]);
+
+        init_contract(&mut deps);
+
+        let msg = HandleMsg::Mint {
+            recipient: "sender".into(),
+            amount: Uint128(1000),
+        };
+
+        let env = mock_env("not_minter", &[]);
+
+        let err = handle(&mut deps, env, msg).unwrap_err();
+        assert_eq!(err, StdError::unauthorized());
+    }
+
+    #[test]
+    fn handle_mint_too_many() {
+        let mut deps = mock_dependencies(16, &[]);
+
+        init_contract(&mut deps);
+
+        let msg = HandleMsg::Mint {
+            recipient: "sender".into(),
+            amount: Uint128(u128::MAX),
+        };
+
+        let env = mock_env("minter", &[]);
+
+        handle(&mut deps, env, msg).unwrap_err();
     }
 
     #[test]
@@ -382,6 +413,29 @@ mod tests {
 
         let state = State::read(&deps.storage).load().unwrap();
         assert_eq!(state.total_supply.u128(), TOTAL_SUPPLY - 1000);
+    }
+
+    #[test]
+    fn handle_burn_more_than_total_supply() {
+        let mut deps = mock_dependencies(16, &[]);
+
+        init_contract(&mut deps);
+        mint(&mut deps);
+
+        State::write(&mut deps.storage)
+            .update(|mut state| {
+                state.total_supply = Uint128(0);
+                Ok(state)
+            })
+            .unwrap();
+
+        let sender_env = mock_env("sender", &[]);
+
+        let msg = HandleMsg::Burn {
+            amount: Uint128(1000),
+        };
+
+        handle(&mut deps, sender_env, msg).unwrap_err();
     }
 
     #[test]
@@ -448,6 +502,25 @@ mod tests {
     }
 
     #[test]
+    fn handle_transfer_from_too_many() {
+        let mut deps = mock_dependencies(16, &[]);
+
+        init_contract(&mut deps);
+        mint(&mut deps);
+        set_allowance(&mut deps);
+
+        let third_party_env = mock_env("third_party", &[]);
+
+        let msg = HandleMsg::TransferFrom {
+            from: "sender".into(),
+            to: "recipient".into(),
+            amount: Uint128(ALLOWANCE_AMOUNT * 2),
+        };
+
+        handle(&mut deps, third_party_env, msg).unwrap_err();
+    }
+
+    #[test]
     fn handle_burn_from() {
         let mut deps = mock_dependencies(16, &[]);
 
@@ -483,6 +556,24 @@ mod tests {
 
         let state = State::read(&deps.storage).load().unwrap();
         assert_eq!(state.total_supply.u128(), TOTAL_SUPPLY - 1000);
+    }
+
+    #[test]
+    fn handle_burn_from_too_many() {
+        let mut deps = mock_dependencies(16, &[]);
+
+        init_contract(&mut deps);
+        mint(&mut deps);
+        set_allowance(&mut deps);
+
+        let third_party_env = mock_env("third_party", &[]);
+
+        let msg = HandleMsg::BurnFrom {
+            from: "sender".into(),
+            amount: Uint128(ALLOWANCE_AMOUNT * 2),
+        };
+
+        handle(&mut deps, third_party_env, msg).unwrap_err();
     }
 
     #[test]
